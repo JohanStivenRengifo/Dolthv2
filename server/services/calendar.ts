@@ -101,6 +101,65 @@ class ICalProvider implements ICalendarProvider {
   }
 
   async createEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
+    throw new Error('Método no implementado');
+  }
+
+  async updateEvent(event: CalendarEvent): Promise<CalendarEvent> {
+    throw new Error('Método no implementado');
+  }
+
+  async deleteEvent(eventId: string): Promise<void> {
+    throw new Error('Método no implementado');
+  }
+}
+
+export class LocalCalendarProvider implements ICalendarProvider {
+  name = 'Local Calendar';
+  private events: Map<string, CalendarEvent> = new Map();
+
+  async authenticate(): Promise<string> {
+    return 'ok';
+  }
+
+  async getEvents(): Promise<CalendarEvent[]> {
+    return Array.from(this.events.values());
+  }
+
+  async createEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
+    const newEvent: CalendarEvent = {
+      id: Date.now().toString(),
+      title: event.title,
+      start: new Date(event.start),
+      end: new Date(event.end),
+      description: event.description,
+      frequency: event.frequency,
+      endDate: event.endDate ? new Date(event.endDate) : undefined,
+      userId: event.userId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.events.set(newEvent.id, newEvent);
+    return newEvent;
+  }
+
+  async updateEvent(event: CalendarEvent): Promise<CalendarEvent> {
+    if (!this.events.has(event.id)) {
+      throw new Error('Event not found');
+    }
+    this.events.set(event.id, { ...event, updatedAt: new Date() });
+    return this.events.get(event.id)!;
+  }
+
+  async deleteEvent(eventId: string): Promise<void> {
+    if (!this.events.has(eventId)) {
+      throw new Error('Event not found');
+    }
+    this.events.delete(eventId);
+  }
+}
+  }
+
+  async createEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
     throw new Error('Los feeds iCal son de solo lectura');
   }
 
@@ -147,6 +206,12 @@ export class CalendarService {
 
   async getCalendars(phone: string): Promise<Calendar[]> {
     // TODO: Implementar obtención de calendarios del usuario
+    return [];
+  }
+
+  async getCalendarEvents(calendarId: number): Promise<CalendarEvent[]> {
+    // TODO: Implement fetching events for the specific calendar
+    // For now, return an empty array until the provider implementation is complete
     return [];
   }
 

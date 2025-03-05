@@ -316,7 +316,7 @@ export class AIService {
       }
     };
 
-    let response = responses[intent]?.base || "¡Entiendo! ";
+    let response = responses[intent]?.base || "¡Entiendo! ";{}
     response += (responses[intent] && (responses[intent][sentiment as 'POS' | 'NEU' | 'NEG'] || responses[intent].NEU)) || "";
 
     if (entities.datetime) {

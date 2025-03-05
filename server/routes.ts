@@ -7,6 +7,22 @@ import { insertMessageSchema, insertReminderSchema } from "@shared/schema";
 import { calendarService } from "./services/calendar";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // AI Processing endpoint for WhatsApp
+  app.post("/api/ai/process", async (req, res) => {
+    try {
+      const { message, chatId } = req.body;
+      if (!message || !chatId) {
+        return res.status(400).json({ error: "Message and chatId are required" });
+      }
+
+      const analysis = await aiService.analyzeMessage(message);
+      res.json({ response: analysis.contextualResponse });
+    } catch (error) {
+      console.error('Error processing AI message:', error);
+      res.status(500).json({ error: "Error processing message" });
+    }
+  });
+
   // Messages
   app.get("/api/messages", async (_req, res) => {
     try {
@@ -120,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Se requiere el número de teléfono" });
       }
 
-      const calendars = await storage.getCalendars(phone);
+      const calendars = await calendarService.getCalendars(phone);
       res.json(calendars);
     } catch (error) {
       console.error('Error obteniendo calendarios:', error);
@@ -157,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "ID de calendario inválido" });
       }
 
-      const events = await storage.getCalendarEvents(id);
+      const events = await calendarService.getCalendarEvents(id);
       res.json(events);
     } catch (error) {
       console.error('Error obteniendo eventos:', error);

@@ -26,6 +26,9 @@ export interface IStorage {
   getAllUserPreferences(): Promise<UserPreferences[]>;
   createUserPreferences(preferences: InsertUserPreferences): Promise<UserPreferences>;
   updateUserPreferences(phone: string, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+
+  // Calendars
+  createCalendar(calendar: Calendar): Promise<Calendar>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -136,6 +139,14 @@ export class DatabaseStorage implements IStorage {
 
     if (!prefs) throw new Error("User preferences not found");
     return prefs;
+  }
+
+  async createCalendar(insertCalendar: InsertCalendar): Promise<Calendar> {
+    const [calendar] = await db
+      .insert(calendars)
+      .values(insertCalendar)
+      .returning();
+    return calendar;
   }
 }
 
