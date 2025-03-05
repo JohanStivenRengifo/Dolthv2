@@ -16,7 +16,6 @@ class GoogleCalendarProvider implements ICalendarProvider {
   name = 'Google Calendar';
 
   async authenticate(): Promise<string> {
-    // TODO: Implementar autenticación con Google OAuth
     throw new Error('Método no implementado');
   }
 
@@ -91,25 +90,23 @@ class ICalProvider implements ICalendarProvider {
   name = 'iCal Feed';
 
   async authenticate(): Promise<string> {
-    // iCal feeds no requieren autenticación
     return 'ok';
   }
 
   async getEvents(): Promise<CalendarEvent[]> {
-    // TODO: Implementar lectura de feed iCal
-    throw new Error('Método no implementado');
+    throw new Error('Los feeds iCal son de solo lectura');
   }
 
   async createEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
-    throw new Error('Método no implementado');
+    throw new Error('Los feeds iCal son de solo lectura');
   }
 
   async updateEvent(event: CalendarEvent): Promise<CalendarEvent> {
-    throw new Error('Método no implementado');
+    throw new Error('Los feeds iCal son de solo lectura');
   }
 
   async deleteEvent(eventId: string): Promise<void> {
-    throw new Error('Método no implementado');
+    throw new Error('Los feeds iCal son de solo lectura');
   }
 }
 
@@ -127,27 +124,28 @@ export class LocalCalendarProvider implements ICalendarProvider {
 
   async createEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
     const newEvent: CalendarEvent = {
-      id: Date.now().toString(),
+      id: 0, // El ID será asignado por la base de datos
       title: event.title,
-      start: new Date(event.start),
-      end: new Date(event.end),
-      description: event.description,
-      frequency: event.frequency,
-      endDate: event.endDate ? new Date(event.endDate) : undefined,
-      userId: event.userId,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      startTime: event.startTime,
+      endTime: event.endTime,
+      description: event.description || null,
+      location: event.location || null,
+      shared: event.shared || false,
+      sharedWith: event.sharedWith || [],
+      calendarId: event.calendarId,
+      createdAt: new Date()
     };
-    this.events.set(newEvent.id, newEvent);
+    this.events.set(newEvent.id.toString(), newEvent);
     return newEvent;
   }
 
   async updateEvent(event: CalendarEvent): Promise<CalendarEvent> {
-    if (!this.events.has(event.id)) {
+    const eventId = event.id.toString();
+    if (!this.events.has(eventId)) {
       throw new Error('Event not found');
     }
-    this.events.set(event.id, { ...event, updatedAt: new Date() });
-    return this.events.get(event.id)!;
+    this.events.set(eventId, event);
+    return this.events.get(eventId)!;
   }
 
   async deleteEvent(eventId: string): Promise<void> {
@@ -155,20 +153,6 @@ export class LocalCalendarProvider implements ICalendarProvider {
       throw new Error('Event not found');
     }
     this.events.delete(eventId);
-  }
-}
-  }
-
-  async createEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
-    throw new Error('Los feeds iCal son de solo lectura');
-  }
-
-  async updateEvent(event: CalendarEvent): Promise<CalendarEvent> {
-    throw new Error('Los feeds iCal son de solo lectura');
-  }
-
-  async deleteEvent(eventId: string): Promise<void> {
-    throw new Error('Los feeds iCal son de solo lectura');
   }
 }
 

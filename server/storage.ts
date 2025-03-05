@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { 
   messages, reminders, userPreferences,
   type Message, type InsertMessage,
@@ -30,6 +30,10 @@ export interface IStorage {
 
   // Calendars
   createCalendar(calendar: Calendar): Promise<Calendar>;
+
+  // New functions
+  getMessagesByPhone(phone: string): Promise<Message[]>;
+  updateUserPreferences(phone: string, preferences: any): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -107,11 +111,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserPreferences(phone: string): Promise<UserPreferences | undefined> {
-    const [prefs] = await db
+    const [preferences] = await db
       .select()
       .from(userPreferences)
       .where(eq(userPreferences.phone, phone));
-    return prefs;
+
+    return preferences;
   }
 
   async getAllUserPreferences(): Promise<UserPreferences[]> {
@@ -128,18 +133,36 @@ export class DatabaseStorage implements IStorage {
     return prefs;
   }
 
-  async updateUserPreferences(
-    phone: string,
-    preferences: Partial<InsertUserPreferences>
-  ): Promise<UserPreferences> {
-    const [prefs] = await db
-      .update(userPreferences)
-      .set({ ...preferences, updatedAt: new Date() })
-      .where(eq(userPreferences.phone, phone))
-      .returning();
+  async updateUserPreferences(phone: string, preferences: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+    const [existing] = await db
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.phone, phone));
 
-    if (!prefs) throw new Error("User preferences not found");
-    return prefs;
+    if (existing) {
+      const [updated] = await db
+        .update(userPreferences)
+        .set({
+          ...preferences,
+          updatedAt: new Date()
+        })
+        .where(eq(userPreferences.phone, phone))
+        .returning();
+
+      if (!updated) throw new Error("User preferences not updated");
+      return updated;
+    } else {
+      const [newPrefs] = await db
+        .insert(userPreferences)
+        .values({
+          phone,
+          ...preferences,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      return newPrefs;
+    }
   }
 
   async createCalendar(insertCalendar: InsertCalendar): Promise<Calendar> {
@@ -154,6 +177,15 @@ export class DatabaseStorage implements IStorage {
     return await db.select()
       .from(reminders)
       .where(eq(reminders.userId, userId));
+  }
+
+  async getMessagesByPhone(phone: string): Promise<Message[]> {
+    return await db
+      .select()
+      .from(messages)
+      .where(eq(messages.phone, phone))
+      .orderBy(desc(messages.createdAt))
+      .limit(10);
   }
 }
 
