@@ -1,0 +1,59 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+dist
+build
+out
+.next
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# IDE - JetBrains
+.idea
+*.iml
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local files
+server/public
+
+# Cache
+.npm
+.eslintcache
+.stylelintcache
+
+# Vite
+vite.config.ts.*
+
+# Archives
+*.tar.gz
+*.zip
+*.rar
+
+# Coverage
+coverage
+
+# TypeScript
+*.tsbuildinfo
