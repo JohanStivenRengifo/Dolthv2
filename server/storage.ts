@@ -4,7 +4,8 @@ import {
   messages, reminders, userPreferences,
   type Message, type InsertMessage,
   type Reminder, type InsertReminder,
-  type UserPreferences, type InsertUserPreferences
+  type UserPreferences, type InsertUserPreferences,
+  type NewMessage, type NewReminder
 } from "@shared/schema";
 
 export interface IStorage {
@@ -147,6 +148,12 @@ export class DatabaseStorage implements IStorage {
       .values(insertCalendar)
       .returning();
     return calendar;
+  }
+
+  async getRemindersByUserId(userId: string) {
+    return await db.select()
+      .from(reminders)
+      .where(eq(reminders.userId, userId));
   }
 }
 

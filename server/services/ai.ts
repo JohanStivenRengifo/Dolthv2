@@ -4,11 +4,16 @@ type AIResponse = {
   sentiment: string;
   intent: string;
   entities: {
-    datetime?: Date;
+    datetime?: Date | null;
     task?: string;
     calendar?: string;
     frequency?: string;
-    endDate?: Date;
+    endDate?: Date | null;
+    priority?: 'high' | 'medium' | 'low';
+    category?: string;
+    location?: string;
+    participants?: string[];
+    queryType?: string;
     [key: string]: any;
   };
   confidence: number;
@@ -60,30 +65,37 @@ export class AIService {
       // 2. Análisis de intención mejorado
       const intentions = {
         reminder: {
-          keywords: ['recordar', 'recordatorio', 'recuérdame', 'agenda', 'programar', 'alarma'],
-          recurring: ['cada', 'todos', 'semanalmente', 'mensualmente', 'diariamente']
+          keywords: ['recordar', 'recordatorio', 'recuérdame', 'agenda', 'programar', 'alarma', 'tarea', 'pendiente'],
+          recurring: ['cada', 'todos', 'semanalmente', 'mensualmente', 'diariamente'],
+          priority: {
+            high: ['urgente', 'importante', 'prioridad', 'rápido', 'inmediato'],
+            medium: ['normal', 'regular', 'cuando puedas'],
+            low: ['cuando tengas tiempo', 'sin prisa', 'eventualmente']
+          }
         },
         calendar: {
-          keywords: ['calendario', 'evento', 'cita', 'reunión', 'meeting'],
-          types: ['google', 'outlook', 'apple', 'ical']
+          keywords: ['calendario', 'evento', 'cita', 'reunión', 'meeting', 'compromiso', 'agenda'],
+          types: ['google', 'outlook', 'apple', 'ical'],
+          categories: ['trabajo', 'personal', 'familia', 'amigos', 'salud', 'educación']
         },
         query: {
-          keywords: ['mostrar', 'ver', 'cuándo', 'cuando', 'qué', 'que', 'cuál', 'cual', 'lista']
+          keywords: ['mostrar', 'ver', 'cuándo', 'cuando', 'qué', 'que', 'cuál', 'cual', 'lista', 'buscar'],
+          types: ['eventos', 'recordatorios', 'tareas', 'citas']
         },
         help: {
-          keywords: ['ayuda', 'help', 'cómo', 'como', 'qué puedes', 'que puedes']
+          keywords: ['ayuda', 'help', 'cómo', 'como', 'qué puedes', 'que puedes', 'funciones', 'capacidades']
         },
         greeting: {
-          keywords: ['hola', 'buenos días', 'buenas tardes', 'buenas noches', 'hey']
+          keywords: ['hola', 'buenos días', 'buenas tardes', 'buenas noches', 'hey', 'buen día']
         },
         farewell: {
-          keywords: ['adiós', 'chao', 'hasta luego', 'nos vemos']
+          keywords: ['adiós', 'chao', 'hasta luego', 'nos vemos', 'hasta pronto']
         },
         gratitude: {
-          keywords: ['gracias', 'te agradezco', 'muchas gracias']
+          keywords: ['gracias', 'te agradezco', 'muchas gracias', 'mil gracias']
         },
         weather: {
-          keywords: ['clima', 'tiempo', 'lluvia', 'temperatura', 'pronóstico']
+          keywords: ['clima', 'tiempo', 'lluvia', 'temperatura', 'pronóstico', 'meteorológico']
         }
       };
 
@@ -99,7 +111,9 @@ export class AIService {
           tomorrow: /mañana/i,
           dayAfterTomorrow: /pasado mañana/i,
           nextWeek: /próxima semana|siguiente semana/i,
-          nextMonth: /próximo mes|siguiente mes/i
+          nextMonth: /próximo mes|siguiente mes/i,
+          today: /hoy/i,
+          now: /ahora|inmediatamente/i
         }
       };
 
@@ -143,6 +157,22 @@ export class AIService {
           }
         }
 
+        // Detectar prioridad
+        for (const [level, keywords] of Object.entries(intentions.reminder.priority)) {
+          if (keywords.some(k => content.toLowerCase().includes(k))) {
+            entities.priority = level as 'high' | 'medium' | 'low';
+            break;
+          }
+        }
+
+        // Detectar categoría
+        for (const category of intentions.calendar.categories) {
+          if (content.toLowerCase().includes(category)) {
+            entities.category = category;
+            break;
+          }
+        }
+
         // Extraer fecha y hora específica
         const timeRegex = /(\d{1,2}):?(\d{2})?\s*(am|pm|h|hrs)?/i;
         const timeMatch = content.match(timeRegex);
@@ -173,6 +203,9 @@ export class AIService {
                 case 'nextMonth':
                   datetime.add(1, 'month');
                   break;
+                case 'now':
+                  datetime = moment();
+                  break;
               }
               break;
             }
@@ -186,12 +219,14 @@ export class AIService {
             .toDate();
         }
 
-        // Extraer la tarea, eliminando referencias temporales
+        // Extraer la tarea, eliminando referencias temporales y otros patrones
         const task = content
           .replace(new RegExp(intentions.reminder.keywords.join('|'), 'gi'), '')
           .replace(new RegExp(Object.values(timePatterns.recurring).map(p => p.source).join('|'), 'gi'), '')
           .replace(new RegExp(Object.values(timePatterns.relative).map(p => p.source).join('|'), 'gi'), '')
           .replace(timeRegex, '')
+          .replace(new RegExp(Object.values(intentions.reminder.priority).flat().join('|'), 'gi'), '')
+          .replace(new RegExp(intentions.calendar.categories.join('|'), 'gi'), '')
           .replace(/\s+/g, ' ')
           .trim();
 
@@ -208,11 +243,25 @@ export class AIService {
             break;
           }
         }
+        // Detectar categoría
+        for (const category of intentions.calendar.categories) {
+          if (content.toLowerCase().includes(category)) {
+            entities.category = category;
+            break;
+          }
+        }
       }
 
       // Detectar consultas generales
       else if (intentions.query.keywords.some(k => content.toLowerCase().includes(k))) {
         intent = "query";
+        // Detectar tipo de consulta
+        for (const type of intentions.query.types) {
+          if (content.toLowerCase().includes(type)) {
+            entities.queryType = type;
+            break;
+          }
+        }
       }
 
       // Detectar solicitudes de ayuda

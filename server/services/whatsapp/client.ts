@@ -7,6 +7,8 @@ import path from 'path';
 import fs from 'fs';
 import { AIService } from '../ai';
 import { LocalCalendarProvider } from '../calendar';
+import { storage } from '../../storage';
+import { type NewReminder } from '@shared/schema';
 
 class WhatsAppClient {
     private static instance: WhatsAppClient;
@@ -103,25 +105,79 @@ class WhatsAppClient {
                 const aiService = new AIService();
                 const aiAnalysis = await aiService.analyzeMessage(message.body);
 
+                // Guardar el mensaje y su análisis
+                await storage.createMessage({
+                    content: message.body,
+                    phone: message.from,
+                    sentiment: aiAnalysis.sentiment,
+                    processed: true,
+                    metadata: {
+                        intent: aiAnalysis.intent,
+                        confidence: aiAnalysis.confidence,
+                        entities: aiAnalysis.entities
+                    }
+                });
+
                 if (aiAnalysis.intent === "reminder" || aiAnalysis.intent === "recurring_reminder") {
-                    const calendarService = new LocalCalendarProvider();
-                    const event = await calendarService.createEvent({
+                    // Crear el recordatorio
+                    const reminder: NewReminder = {
                         title: aiAnalysis.entities.task || "Reminder",
                         start: aiAnalysis.entities.datetime || new Date(),
                         end: aiAnalysis.entities.datetime || new Date(),
                         description: message.body,
                         frequency: aiAnalysis.entities.frequency,
-                        endDate: aiAnalysis.entities.endDate,
-                        userId: message.from
+                        endDate: aiAnalysis.entities.endDate || null,
+                        userId: message.from,
+                        priority: aiAnalysis.entities.priority,
+                        category: aiAnalysis.entities.category,
+                        metadata: {
+                            sentiment: aiAnalysis.sentiment,
+                            confidence: aiAnalysis.confidence
+                        }
+                    };
+
+                    const savedReminder = await storage.createReminder(reminder);
+
+                    // Crear el evento en el calendario
+                    const calendarService = new LocalCalendarProvider();
+                    const event = await calendarService.createEvent({
+                        calendarId: 1, // ID del calendario por defecto
+                        title: reminder.title,
+                        startTime: reminder.start,
+                        endTime: reminder.end,
+                        description: reminder.description,
+                        location: null,
+                        shared: false,
+                        sharedWith: []
                     });
 
-                    await message.reply(`¡Entendido! He creado un recordatorio para ${aiAnalysis.entities.task} ${event.frequency ? 'que se repetirá ' + event.frequency : ''} para el ${new Date(event.start).toLocaleString()}`);
+                    let response = `¡Entendido! He creado un recordatorio para "${reminder.title}" `;
+                    
+                    if (reminder.frequency) {
+                        response += `que se repetirá ${reminder.frequency} `;
+                    }
+                    
+                    if (reminder.priority) {
+                        response += `con prioridad ${reminder.priority} `;
+                    }
+                    
+                    if (reminder.category) {
+                        response += `en la categoría ${reminder.category} `;
+                    }
+                    
+                    response += `para el ${reminder.start.toLocaleString()}`;
+                    
+                    if (reminder.endDate) {
+                        response += ` hasta el ${reminder.endDate.toLocaleDateString()}`;
+                    }
+
+                    await message.reply(response);
                 } else {
                     await message.reply(aiAnalysis.contextualResponse);
                 }
             } catch (error) {
                 log(`Error processing message: ${error}`);
-                await message.reply('Lo siento, encontré un error al procesar tu mensaje.');
+                await message.reply('Lo siento, encontré un error al procesar tu mensaje. Por favor, intenta expresarlo de otra manera.');
             }
         });
     }

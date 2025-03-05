@@ -10,6 +10,7 @@ export const messages = pgTable("messages", {
   processed: boolean("processed").default(false),
   attachmentUrl: text("attachment_url"),
   attachmentType: text("attachment_type"), // image, audio, etc.
+  metadata: jsonb("metadata"), // Para almacenar análisis de IA, intenciones, etc.
   createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -17,15 +18,14 @@ export const reminders = pgTable("reminders", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
-  datetime: timestamp("datetime").notNull(),
-  phone: text("phone").notNull(),
-  recurring: boolean("recurring").default(false),
-  frequency: text("frequency"), // daily, weekly, monthly, yearly
+  start: timestamp("start").notNull(),
+  end: timestamp("end"),
+  frequency: text("frequency"),
   endDate: timestamp("end_date"),
-  attachmentUrl: text("attachment_url"),
-  completed: boolean("completed").default(false),
-  shared: boolean("shared").default(false),
-  sharedWith: text("shared_with").array(),
+  userId: text("user_id").notNull(),
+  priority: text("priority"), // high, medium, low
+  category: text("category"),
+  metadata: jsonb("metadata"), // Para almacenar análisis de IA, sentimiento, etc.
   createdAt: timestamp("created_at").defaultNow()
 });
 
@@ -83,26 +83,8 @@ export const analytics = pgTable("analytics", {
 });
 
 // Schemas de inserción
-export const insertMessageSchema = createInsertSchema(messages).pick({
-  content: true,
-  phone: true,
-  sentiment: true,
-  attachmentUrl: true,
-  attachmentType: true
-});
-
-export const insertReminderSchema = createInsertSchema(reminders).pick({
-  title: true,
-  description: true,
-  datetime: true,
-  phone: true,
-  recurring: true,
-  frequency: true,
-  endDate: true,
-  attachmentUrl: true,
-  shared: true,
-  sharedWith: true
-});
+export const insertMessageSchema = createInsertSchema(messages);
+export const insertReminderSchema = createInsertSchema(reminders);
 
 export const insertCalendarSchema = createInsertSchema(calendars).pick({
   phone: true,
@@ -137,10 +119,21 @@ export const insertUserPreferencesSchema = createInsertSchema(userPreferences).p
 
 // Tipos de inferencia
 export type Message = typeof messages.$inferSelect;
-export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type NewMessage = typeof messages.$inferInsert;
 
 export type Reminder = typeof reminders.$inferSelect;
-export type InsertReminder = z.infer<typeof insertReminderSchema>;
+export type NewReminder = {
+  title: string;
+  description?: string | null;
+  start: Date;
+  end: Date;
+  frequency?: string | null;
+  endDate?: Date | null;
+  userId: string;
+  priority?: string | null;
+  category?: string | null;
+  metadata?: any | null;
+};
 
 export type Calendar = typeof calendars.$inferSelect;
 export type InsertCalendar = z.infer<typeof insertCalendarSchema>;
